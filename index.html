@@ -90,8 +90,13 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--bg-base);
       overflow: hidden;
+      background:
+        linear-gradient(to bottom, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.7) 40%, var(--bg-base) 100%),
+        url('./static/images/bg.jpg');
+      background-size: cover;
+      background-position: center top;
+      background-repeat: no-repeat;
     }
 
     .hero-header::before {
@@ -101,32 +106,27 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background-image: url('./static/images/bg.jpg');
-      background-size: cover;
-      background-position: center top;
-      background-repeat: no-repeat;
-      opacity: 0.35;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 20%, rgba(120, 80, 255, 0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 20% 80%, rgba(244, 114, 182, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 40% at 80% 60%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+      animation: aurora 15s ease-in-out infinite alternate;
     }
 
     .hero-header::after {
       content: '';
       position: absolute;
-      top: 0;
+      bottom: 0;
       left: 0;
       width: 100%;
-      height: 100%;
-      background:
-        radial-gradient(ellipse 80% 60% at 50% 20%, rgba(120, 80, 255, 0.15) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 50% at 20% 80%, rgba(244, 114, 182, 0.1) 0%, transparent 50%),
-        radial-gradient(ellipse 50% 40% at 80% 60%, rgba(56, 189, 248, 0.08) 0%, transparent 50%),
-        linear-gradient(180deg, rgba(9, 9, 11, 0.2) 0%, rgba(9, 9, 11, 0.6) 60%, var(--bg-base) 100%);
-      animation: aurora 15s ease-in-out infinite alternate;
+      height: 40%;
+      background: linear-gradient(to bottom, transparent, var(--bg-base));
       pointer-events: none;
     }
 
     @keyframes aurora {
-      0% { opacity: 1; }
-      100% { opacity: 0.8; }
+      0% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0.7; transform: scale(1.1); }
     }
 
     .hero-header .hero-content {
@@ -459,7 +459,6 @@
       text-align: center;
       margin-bottom: 1.2rem;
       letter-spacing: 0.5px;
-      text-transform: uppercase;
     }
 
     .story-image {
