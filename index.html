@@ -1,290 +1,536 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="description"
-        content="OneActor: Consistent Subject Generation via Cluster-Conditioned Guidance">
-  <meta name="keywords" content="Diffusion model, text-to-image generation">
+        content="SpotActor: Training-Free Layout-Controlled Consistent Image Generation">
+  <meta name="keywords" content="Diffusion model, text-to-image generation, layout control, consistent generation">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- <img src="./static/images/icon.png" alt="Icon" style="height: 10em; margin-left: 100px; margin-top: 100px"> -->
-  <title>
-    OneActor
-  </title>
-  <style>
-    body {
-        /* 设置背景图片 */
-        /* width:100vw; */
-        height: 1200px;
-        background-image: linear-gradient(to bottom, rgb(0, 0, 0, 0.6) 0%, rgba(255, 255, 255, 0) 100%), url('./static/images/bg.jpg');
-        background-size: cover;
-        /* background-position: center; */
-        background-repeat: no-repeat;
-    }
-    .hero-body .author-block{
-      color: rgb(255, 255, 255) !important; /* 确保标题、文本和链接也变成白色 */
-    }
-  </style>
-  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <title>SpotActor</title>
+
+  <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-PYVRSFMDRL"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
-
-    function gtag() {
-      dataLayer.push(arguments);
-    }
-
+    function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
-
     gtag('config', 'G-PYVRSFMDRL');
   </script>
-  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+
+  <!-- MathJax (no polyfill needed for modern browsers) -->
   <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
-  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
-        rel="stylesheet">
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
-      
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+
+  <!-- Stylesheets -->
   <link rel="stylesheet" href="./static/css/bulma.min.css">
   <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
   <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
   <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
-  <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
   <link rel="stylesheet" href="./static/css/index.css">
   <link rel="icon" href="./static/images/icon.png">
 
+  <!-- Scripts -->
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
   <script defer src="./static/js/fontawesome.all.min.js"></script>
   <script src="./static/js/bulma-carousel.min.js"></script>
   <script src="./static/js/bulma-slider.min.js"></script>
   <script src="./static/js/index.js"></script>
+
   <style>
-    body {
-      font-family: "Roboto", Times, serif;
+    :root {
+      --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --accent-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      --dark-bg: #0f0f1a;
+      --card-bg: rgba(255, 255, 255, 0.03);
+      --text-primary: #ffffff;
+      --text-secondary: rgba(255, 255, 255, 0.75);
+      --border-subtle: rgba(255, 255, 255, 0.08);
     }
-    h1 {
-      font-family: "Courier New", Courier, monospace;
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--dark-bg);
+      color: var(--text-primary);
+      overflow-x: hidden;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Hero Section */
+    .hero-section {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      background-image: url('./static/images/bg.jpg');
+      background-size: cover;
+      background-position: center;
+      filter: brightness(0.3) saturate(1.2);
+      z-index: 0;
+    }
+
+    .hero-bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(15, 15, 26, 0.4) 0%, rgba(15, 15, 26, 0.95) 100%);
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      max-width: 900px;
+      padding: 60px 24px;
+    }
+
+    .venue-badge {
+      display: inline-block;
+      background: var(--primary-gradient);
+      color: white;
+      padding: 6px 20px;
+      border-radius: 50px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .publication-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 32px;
+      background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .authors-list {
+      margin-bottom: 20px;
+    }
+
+    .authors-list a {
+      color: rgba(255, 255, 255, 0.9) !important;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 1rem;
+      transition: color 0.2s ease;
+    }
+
+    .authors-list a:hover {
+      color: #a5b4fc !important;
+      text-decoration: none;
+    }
+
+    .authors-list sup {
+      color: #a5b4fc;
+      font-weight: 600;
+    }
+
+    .affiliations {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.8;
+      margin-bottom: 36px;
+    }
+
+    .affiliations sup {
+      color: #a5b4fc;
+      font-weight: 600;
+    }
+
+    /* Buttons */
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 50px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      color: white;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+      color: white;
+    }
+
+    .btn i {
+      font-size: 1.1rem;
+    }
+
+    /* Teaser Section */
+    .teaser-section {
+      position: relative;
+      z-index: 1;
+      padding: 0 24px 80px;
+      margin-top: -80px;
+    }
+
+    .teaser-container {
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .teaser-img {
+      width: 80%;
+      height: auto;
+      border-radius: 16px;
+      border: 1px solid var(--border-subtle);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      transition: transform 0.4s ease, box-shadow 0.4s ease;
+    }
+
+    .teaser-img:hover {
+      transform: scale(1.02);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    }
+
+    .teaser-caption {
+      margin-top: 24px;
+      color: var(--text-secondary);
+      font-size: 1rem;
+      line-height: 1.6;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Section Styles */
+    .content-section {
+      padding: 100px 24px;
+      position: relative;
+    }
+
+    .content-section:nth-child(even) {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .section-container {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .section-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 40px;
+      position: relative;
+    }
+
+    .section-title::after {
+      content: '';
+      display: block;
+      width: 60px;
+      height: 3px;
+      background: var(--primary-gradient);
+      margin: 16px auto 0;
+      border-radius: 2px;
+    }
+
+    .section-title-decorated {
+      display: inline-block;
+      background: var(--primary-gradient);
+      color: white;
+      padding: 14px 36px;
+      border-radius: 12px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 600;
+      box-shadow: 0 8px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    /* Abstract */
+    .abstract-text {
+      font-size: 1.05rem;
+      line-height: 1.85;
+      color: var(--text-secondary);
+      text-align: justify;
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 40px;
+      backdrop-filter: blur(10px);
+    }
+
+    /* Results */
+    .results-section {
+      padding: 100px 24px;
+    }
+
+    .results-container {
+      max-width: 800px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .result-block {
+      margin-bottom: 80px;
+    }
+
+    .result-block:last-child {
+      margin-bottom: 0;
+    }
+
+    .result-img {
+      width: 100%;
+      height: auto;
+      border-radius: 16px;
+      border: 1px solid var(--border-subtle);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+      margin-top: 28px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .result-img:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    /* BibTeX */
+    .bibtex-section {
+      padding: 80px 24px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .bibtex-container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .bibtex-code {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 28px 32px;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: #c9d1d9;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+
+    /* Floating particles background */
+    .particles {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .particle {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: rgba(165, 180, 252, 0.3);
+      border-radius: 50%;
+      animation: float linear infinite;
+    }
+
+    @keyframes float {
+      0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { transform: translateY(-100px) rotate(720deg); opacity: 0; }
+    }
+
+    /* Fade-in animation */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hero-content { padding: 40px 16px; }
+      .publication-title { font-size: 1.8rem; }
+      .abstract-text { padding: 24px; }
+      .teaser-img { width: 95%; }
     }
   </style>
 </head>
 
 <body>
-<section class="hero">
-  <div class="hero-body">
-    <div class="container is-max-desktop">
-      <div class="columns is-centered">
-        <div class="column has-text-centered">
-          <br>
-          <br>
-          <h1 class="title is-1 publication-title" style="color: rgb(255, 255, 255);">OneActor: Consistent Subject Generation via Cluster-Conditioned Guidance</h1>
-          <div class="is-size-5 publication-authors">
-            <strong>
-            <span class="author-block">
-              <a href="https://scholar.google.com/citations?hl=en&user=zQnTBEoAAAAJ">Jiahao Wang</a><sup>1,2</sup>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            </span>
-            <span class="author-block">
-              <a href="https://gr.xjtu.edu.cn/web/yancaixia">Caixia Yan</a><sup>1</sup>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            </span>
-            <span class="author-block">
-              <a href="https://scholar.google.com/citations?user=GBnV3HIAAAAJ&hl=en&oi=ao">Haonan Lin</a><sup>1</sup>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            </span>
-            <span class="author-block">
-              <a href="https://gr.xjtu.edu.cn/web/zhangwzh123/">Weizhan Zhang</a><sup>1</sup>
-            </span><br>
-            <span class="author-block">
-              <a href="https://scholar.google.com/citations?hl=en&user=VSRnUiUAAAAJ">Mengmeng Wang</a><sup>3</sup>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            </span>
-            <span class="author-block">
-              <a href="https://gr.xjtu.edu.cn/web/gongtl/home" style="color: white;">Tieliang Gong</a><sup>1</sup>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            </span>
-            <span class="author-block">
-              <a href="https://openreview.net/profile?id=~Guang_Dai1">Guang Dai</a><sup>3</sup>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            </span>
-            <span class="author-block">
-              <a href="https://openreview.net/profile?id=~Hao_Sun15">Hao Sun</a><sup>4</sup>
-            </span>
-            </strong>
-          </div>
 
-          <div class="is-size-5 publication-authors">
-            <span class="author-block"><sup>1</sup>Xi'an Jiaotong University</span><br>
-            <span class="author-block"><sup>2</sup>State Key Laboratory of Communication Content Cognition </span><br>
-            <span class="author-block"><sup>3</sup>SGIT AI Lab</span><br>
-            <span class="author-block"><sup>4</sup>China Telecom</span><br>
-            <span class="author-block"> </span>
-          </div>
-          
-          <div class="is-size-5 publication-authors">
-            <span class="author-block">NeurIPS 2024</span><br>
-          </div>
+<!-- Floating Particles -->
+<div class="particles" id="particles"></div>
 
-          <div class="column has-text-centered">
-            <div class="publication-links">
-              <!-- PDF Link. -->
-              <span class="link-block">
-                <a href="https://arxiv.org/pdf/2404.10267"
-                   class="external-link button is-normal is-rounded is-dark">
-                  <span class="icon">
-                      <i class="fas fa-file-pdf"></i>
-                  </span>
-                  <span>Paper</span>
-                </a>
-              </span>
-              <span class="link-block">
-                <a href="https://arxiv.org/abs/2404.10267"
-                   class="external-link button is-normal is-rounded is-dark">
-                  <span class="icon">
-                      <i class="ai ai-arxiv"></i>
-                  </span>
-                  <span>arXiv</span>
-                </a>
-              </span>
-              <!-- Video Link. -->
-              <!-- <span class="link-block">
-                <a href=""
-                   class="external-link button is-normal is-rounded is-dark">
-                  <span class="icon">
-                      <i class="fab fa-youtube"></i>
-                  </span>
-                  <span>Video</span>
-                </a>
-              </span> -->
-              <!-- Code Link. -->
-              <span class="link-block">
-                <a href="https://github.com/JoHnneyWang/OneActor"
-                   class="external-link button is-normal is-rounded is-dark">
-                  <span class="icon">
-                      <i class="fab fa-github"></i>
-                  </span>
-                  <span>Code</span>
-                  </a>
-              </span>
-            </div>
+<!-- Hero Section -->
+<section class="hero-section">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <div class="venue-badge">AAAI 2025</div>
+    <h1 class="publication-title">SpotActor: Training-Free Layout-Controlled Consistent Image Generation</h1>
+    
+    <div class="authors-list">
+      <a href="https://scholar.google.com/citations?hl=en&user=zQnTBEoAAAAJ">Jiahao Wang</a><sup>1,2</sup>&nbsp;&nbsp;&nbsp;
+      <a href="https://gr.xjtu.edu.cn/web/yancaixia">Caixia Yan</a><sup>1</sup>&nbsp;&nbsp;&nbsp;
+      <a href="https://gr.xjtu.edu.cn/web/zhangwzh123/">Weizhan Zhang</a><sup>1</sup>&nbsp;&nbsp;&nbsp;
+      <a href="https://scholar.google.com/citations?user=GBnV3HIAAAAJ&hl=en&oi=ao">Haonan Lin</a><sup>1</sup>&nbsp;&nbsp;&nbsp;
+      <a href="https://scholar.google.com/citations?hl=en&user=VSRnUiUAAAAJ">Mengmeng Wang</a><sup>3,4</sup><br>
+      <a href="https://openreview.net/profile?id=~Guang_Dai1">Guang Dai</a><sup>4</sup>&nbsp;&nbsp;&nbsp;
+      <a href="https://gr.xjtu.edu.cn/web/gongtl/home">Tieliang Gong</a><sup>1</sup>&nbsp;&nbsp;&nbsp;
+      <a href="https://openreview.net/profile?id=~Hao_Sun15">Hao Sun</a><sup>5</sup>&nbsp;&nbsp;&nbsp;
+      <a href="https://scholar.google.com/citations?user=z5SPCmgAAAAJ&hl=en&oi=ao">Jingdong Wang</a><sup>6</sup>
+    </div>
 
-          </div>
-        </div>
-      </div>
+    <div class="affiliations">
+      <sup>1</sup>Xi'an Jiaotong University&nbsp;&nbsp;&nbsp;
+      <sup>2</sup>State Key Laboratory of Communication Content Cognition<br>
+      <sup>3</sup>Zhejiang University of Technology&nbsp;&nbsp;&nbsp;
+      <sup>4</sup>SGIT AI Lab&nbsp;&nbsp;&nbsp;
+      <sup>5</sup>China Telecom&nbsp;&nbsp;&nbsp;
+      <sup>6</sup>Baidu
+    </div>
+
+    <div class="btn-group">
+      <a href="https://arxiv.org/abs/2409.04801" class="btn">
+        <i class="fas fa-file-pdf"></i>
+        <span>Paper</span>
+      </a>
+      <a href="https://arxiv.org/abs/2409.04801" class="btn">
+        <i class="ai ai-arxiv"></i>
+        <span>arXiv</span>
+      </a>
+      <a href="https://github.com/JoHnneyWang/SpotActor" class="btn">
+        <i class="fab fa-github"></i>
+        <span>Code</span>
+      </a>
     </div>
   </div>
 </section>
 
-<section class="hero teaser">
-  <div class="container is-max-desktop">
-    <div class="hero-body">
-      <img src="./static/images/teaser.jpg" alt="Teaser Image" style="width: 100%; height: auto; border: 2px solid black; border-radius: 5px;">
-      <h2 class="subtitle has-text-centered"  style="color: rgb(255, 255, 255);">
-        OneActor, with a quick tuning, provides an extra cluster guidance and generates images from the same target sub-cluster that show a consistent identity.
-      </h2>
+<!-- Teaser -->
+<section class="teaser-section">
+  <div class="teaser-container fade-in">
+    <img src="./static/images/teaser.jpg" alt="SpotActor Teaser" class="teaser-img">
+    <p class="teaser-caption">
+      SpotActor, given bounding boxes and text prompts of subject and plot descriptions, generates high-quality images where subjects align to the layout as well as share a consistent appearance.
+    </p>
+  </div>
+</section>
+
+<!-- Abstract -->
+<section class="content-section">
+  <div class="section-container fade-in">
+    <h2 class="section-title">Abstract</h2>
+    <div class="abstract-text">
+      Text-to-image diffusion models significantly enhance the efficiency of artistic creation with high-fidelity image generation. However, in typical application scenarios like comic book production, they can neither place each subject into its expected spot nor maintain the consistent appearance of each subject across images. For these issues, we pioneer a novel task, Layout-to-Consistent-Image (L2CI) generation, which produces consistent and compositional images in accordance with the given layout conditions and text prompts. To accomplish this challenging task, we present a new formalization of dual energy guidance with optimization in a dual semantic-latent space and thus propose a training-free pipeline, SpotActor, which features a layout-conditioned backward update stage and a consistent forward sampling stage. In the backward stage, we innovate a nuanced layout energy function to mimic the attention activations with a sigmoid-like objective. While in the forward stage, we design Regional Interconnection Self-Attention (RISA) and Semantic Fusion Cross-Attention (SFCA) mechanisms that allow mutual interactions across images. To evaluate the performance, we present ActorBench, a specified benchmark with hundreds of reasonable prompt-box pairs stemming from object detection datasets. Comprehensive experiments are conducted to demonstrate the effectiveness of our method. The results prove that SpotActor fulfills the expectations of this task and showcases the potential for practical applications with superior layout alignment, subject consistency, prompt conformity and background diversity.
+    </div>
+  </div>
+</section>
+
+<!-- Results -->
+<section class="results-section">
+  <div class="results-container">
+    <div class="result-block fade-in">
+      <span class="section-title-decorated">Performance Comparison</span>
+      <img src="./static/images/single.jpg" alt="Performance Comparison" class="result-img">
+    </div>
+
+    <div class="result-block fade-in">
+      <span class="section-title-decorated">SpotActor Gallery</span>
+      <img src="./static/images/more.jpg" alt="Gallery - More Results" class="result-img">
+      <img src="./static/images/multi.jpg" alt="Gallery - Multi Subject" class="result-img" style="margin-top: 20px;">
     </div>
   </div>
 </section>
 
 
-<section class="section custom-background">
-  <div class="container is-max-desktop">
-    <!-- Abstract. -->
-    <div class="columns is-centered has-text-centered">
-      <div class="column is-four-fifths">
-        <h2 class="title is-3">Abstract</h2>
-        <div class="content has-text-justified">
-          <p>
-          Text-to-image diffusion models benefit artists with high-quality image generation. Yet their stochastic nature hinders artists from creating consistent images of the same subject.
-          For this issue, we propose a novel one-shot tuning paradigm, termed as OneActor. It efficiently performs consistent subject generation solely driven by prompts via a learned semantic guidance to bypass the laborious backbone tuning. We lead the way to formalize the objective of consistent subject generation from a clustering perspective, and thus design a cluster-conditioned model. To mitigate the overfitting challenge shared by one-shot tuning pipelines, we augment the tuning with auxiliary samples and devise two inference strategies: semantic interpolation and cluster guidance. These techniques are later verified to significantly enhance the generation quality. 
-          Comprehensive experiments show that our method outperforms a variety of baselines with satisfactory subject consistency, superior prompt conformity as well as high image quality. Our method is capable of multi-subject generation and compatible with popular diffusion extensions. Besides, we achieve a 4 times faster tuning speed than tuning-based baselines and, if desired, avoid increasing inference time.
-        </div>
-      </div>
-    </div>
-    <style>
-      .custom-background {
-        background-color: rgb(239, 239, 239);
-        width: 100%;
+<!-- BibTeX -->
+<section class="bibtex-section">
+  <div class="bibtex-container fade-in">
+    <h2 class="section-title">BibTeX</h2>
+    <pre class="bibtex-code"><code>@inproceedings{spotactor,
+  author    = {Jiahao Wang and Caixia Yan and Weizhan Zhang and 
+               Haonan Lin and Mengmeng Wang and Guang Dai and 
+               Tieliang Gong and Hao Sun and Jingdong Wang},
+  title     = {SpotActor: Training-Free Layout-Controlled 
+               Consistent Image Generation},
+  booktitle = {AAAI Conference on Artificial Intelligence},
+  year      = {2025},
+}</code></pre>
+  </div>
+</section>
+
+<!-- Scroll Animation & Particles Script -->
+<script>
+  // Fade-in on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
       }
-    </style>
-    <!--/ Abstract. -->
-</section>
+    });
+  }, { threshold: 0.1 });
 
-<section class="section"></section>
-  <div class="container is-max-desktop">
-    <div class="columns is-centered has-text-centered">
-      <div class="column">
-        <h2 class="title is-3" style="color: white; background: linear-gradient(to right, rgba(199, 3, 62, 0.719), rgba(3, 70, 196, 0.658)); padding: 20px;">Performance</h2>
-        <div style="width: 50%; margin: 0 auto;"><h2 class="title is-4" style="color: rgb(134, 134, 134); background: linear-gradient(to left, rgba(199, 3, 62, 0.15), rgba(3, 71, 196, 0.15)); padding: 10px;">Single Subject Generation</h2>
-        </div>
-        <br>
-        <div class="content has-text-justified">
-          
-          <div style="text-align: center;">
-          <img src="./static/images/single0.jpg" style="width: 70%; height: auto;"></div>
-          <br>
-          <img src="./static/images/single.jpg" style="width: 100%; height: auto;">
-          </div>
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
 
-          <div style="width: 50%; margin: 0 auto;"><h2 class="title is-4" style="color: rgb(134, 134, 134); background: linear-gradient(to left, rgba(199, 3, 62, 0.15), rgba(3, 71, 196, 0.15)); padding: 10px;">Multiple Subjects Generation</h2>
-          </div>
-          <br>
-          <img src="./static/images/multi.jpg" style="width:100%; height:auto">
-          </div>
-      </div>
-    </div>
-<br><br>
-<div class="container is-max-desktop">
-    <div class="columns is-centered has-text-centered">
-        <div class="column">
-            <h2 class="title is-3" style="color: white; background: linear-gradient(to right, rgba(199, 3, 62, 0.719), rgba(3, 70, 196, 0.658)); padding: 20px;">
-                Application
-            </h2>
-            <div style="width: 50%; margin: 0 auto;"><h2 class="title is-4" style="color: rgb(134, 134, 134); background: linear-gradient(to left, rgba(199, 3, 62, 0.15), rgba(3, 71, 196, 0.15)); padding: 10px;">Storybook Creation</h2>
-            </div>
-            <div class="content has-text-justified">
-                
-                <img src="./static/images/story.jpg" style="width: 100%; height: auto;">
-                <br>
-                <div class="columns is-centered">
-                    <div class="column is-half">
-                      <div style="width: 65%; margin: 0 auto; text-align: center; padding-top: 10%"><h2 class="title is-4" style="color: rgb(134, 134, 134); background: linear-gradient(to left, rgba(199, 3, 62, 0.15), rgba(3, 71, 196, 0.15)); padding: 10px;">Style Transfer</h2>
-                      </div>
-                        <div style="text-align: center;">
-                            <img src="./static/images/style.jpg" style="width: 100%; height: auto; padding-top: 0%">
-                        </div>
-                    </div>
-                    <div class="column is-half">
-                      <div style="width: 65%; margin: 0 auto; text-align: center;"><h2 class="title is-4" style="color: rgb(134, 134, 134); background: linear-gradient(to left, rgba(199, 3, 62, 0.15), rgba(3, 71, 196, 0.15)); padding: 10px;">Pose Control</h2>
-                      </div>
-                        <div style="text-align: center;">
-                            <img src="./static/images/pose.jpg" style="width: 100%; height: auto;">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-
-
-<section class="section" id="BibTeX">
-  <div class="container is-max-desktop content">
-    <h2 class="title">BibTeX</h2>
-    <pre><code>@inproceedings{oneactor,
-      title={OneActor: Consistent Character Generation via Cluster-Conditioned Guidance},
-      author={Jiahao Wang,
-              Caixia Yan,
-              Haonan Lin,
-              Weizhan Zhang,
-              Mengmeng Wang,
-              Tieliang Gong,
-              Guang Dai,
-              Hao Sun
-              },
-      booktitle={Advances in Neural Information Processing Systems},
-      year={2024}
-    }</code></pre>
-  </div>
-</section>
-
+  // Generate floating particles
+  const particlesContainer = document.getElementById('particles');
+  for (let i = 0; i < 30; i++) {
+    const particle = document.createElement('div');
+    particle.classList.add('particle');
+    particle.style.left = Math.random() * 100 + '%';
+    particle.style.animationDuration = (Math.random() * 20 + 15) + 's';
+    particle.style.animationDelay = (Math.random() * 10) + 's';
+    particle.style.width = (Math.random() * 3 + 1) + 'px';
+    particle.style.height = particle.style.width;
+    particlesContainer.appendChild(particle);
+  }
+</script>
 
 </body>
 </html>
