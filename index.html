@@ -101,11 +101,11 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background:
-        radial-gradient(ellipse 80% 60% at 50% 20%, rgba(120, 80, 255, 0.12) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 50% at 20% 80%, rgba(244, 114, 182, 0.08) 0%, transparent 50%),
-        radial-gradient(ellipse 50% 40% at 80% 60%, rgba(56, 189, 248, 0.06) 0%, transparent 50%);
-      animation: aurora 15s ease-in-out infinite alternate;
+      background-image: url('./static/images/bg.jpg');
+      background-size: cover;
+      background-position: center top;
+      background-repeat: no-repeat;
+      opacity: 0.35;
     }
 
     .hero-header::after {
@@ -115,13 +115,18 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: radial-gradient(circle at 50% 50%, transparent 0%, var(--bg-base) 70%);
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 20%, rgba(120, 80, 255, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 20% 80%, rgba(244, 114, 182, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 40% at 80% 60%, rgba(56, 189, 248, 0.08) 0%, transparent 50%),
+        linear-gradient(180deg, rgba(9, 9, 11, 0.2) 0%, rgba(9, 9, 11, 0.6) 60%, var(--bg-base) 100%);
+      animation: aurora 15s ease-in-out infinite alternate;
       pointer-events: none;
     }
 
     @keyframes aurora {
-      0% { opacity: 1; transform: scale(1); }
-      100% { opacity: 0.7; transform: scale(1.1); }
+      0% { opacity: 1; }
+      100% { opacity: 0.8; }
     }
 
     .hero-header .hero-content {
